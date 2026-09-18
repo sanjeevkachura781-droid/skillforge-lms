@@ -1,0 +1,3 @@
+export function LoadingState({ label = 'Loading your learning space...' }: { label?: string }) { return <div className="py-20 text-center font-sans text-sm text-[#657066]" role="status">{label}</div>; }
+export function ErrorState({ message = 'Something went wrong.' }: { message?: string }) { return <div className="border border-[#e3b1a2] bg-[#fff7f4] p-5 font-sans text-sm text-[#9d3d2b]" role="alert">{message}</div>; }
+export function EmptyState({ title, detail }: { title: string; detail: string }) { return <div className="border border-dashed border-[#c9c1b0] p-10 text-center"><h3 className="text-xl">{title}</h3><p className="mt-2 font-sans text-sm text-[#657066]">{detail}</p></div>; }
