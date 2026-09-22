@@ -3,9 +3,10 @@ import { sequelize } from './sequelize.js';
 import * as usersMigration from './migrations/001-create-users.js';
 import * as catalogMigration from './migrations/002-create-catalog.js';
 import * as learningRecordsMigration from './migrations/003-create-learning-records.js';
+import * as expandCourseContentMigration from './migrations/004-expand-course-content.js';
 
 type Migration = { name: string; up: (queryInterface: QueryInterface) => Promise<void>; down: (queryInterface: QueryInterface) => Promise<void> };
-const migrations: Migration[] = [usersMigration, catalogMigration, learningRecordsMigration];
+const migrations: Migration[] = [usersMigration, catalogMigration, learningRecordsMigration, expandCourseContentMigration];
 
 async function migrate(): Promise<void> {
   await sequelize.authenticate();
@@ -27,10 +28,9 @@ async function migrate(): Promise<void> {
     });
     console.log(`Applied ${migration.name}`);
   }
-  await sequelize.close();
 }
 
 migrate().catch((error: unknown) => {
   console.error('Migration failed', error);
   process.exitCode = 1;
-});
+}).finally(() => sequelize.close());

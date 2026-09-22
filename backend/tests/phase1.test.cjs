@@ -15,6 +15,8 @@ let Certificate;
 let Review;
 let Notification;
 let calculateQuizScore;
+let registerSchema;
+let loginSchema;
 
 const validRegistration = {
   firstName: 'Test',
@@ -28,6 +30,7 @@ beforeAll(async () => {
   ({ app } = await import('../dist/app.js'));
   ({ Course, CourseModule, Lesson, Enrollment, LessonProgress, Quiz, QuizQuestion, QuizOption, QuizAttempt, Certificate, Review, Notification } = await import('../dist/database/models/index.js'));
   ({ calculateQuizScore } = await import('../dist/modules/quizzes/quiz.service.js'));
+  ({ registerSchema, loginSchema } = await import('../dist/modules/auth/auth.schemas.js'));
   server = app.listen(0);
 });
 
@@ -44,6 +47,21 @@ describe('Phase 1 API foundation', () => {
     const response = await request(server).post('/api/auth/register').send({ ...validRegistration, password: 'short' });
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({ success: false, error: { code: 'VALIDATION_ERROR' } });
+  });
+
+  it.each(['a'.repeat(73), '\u00e9'.repeat(37), '\ud83d\ude00'.repeat(19)])('rejects passwords that bcrypt would silently truncate', async (password) => {
+    const registration = await request(server).post('/api/auth/register').send({ ...validRegistration, password });
+    expect(registration.status).toBe(400);
+    expect(registration.body.error.code).toBe('VALIDATION_ERROR');
+    const login = await request(server).post('/api/auth/login').send({ email: validRegistration.email, password });
+    expect(login.status).toBe(400);
+    expect(login.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it.each(['a'.repeat(72), '\u00e9'.repeat(36), '\ud83d\ude00'.repeat(18)])('accepts credentials at the full bcrypt byte limit', (password) => {
+    const input = { body: { ...validRegistration, password }, params: {}, query: {} };
+    expect(registerSchema.safeParse(input).success).toBe(true);
+    expect(loginSchema.safeParse(input).success).toBe(true);
   });
 
   it('rejects protected requests without a token', async () => {

@@ -1,0 +1,12 @@
+{
+  "name": "skillforge-lms",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
+    "test": "npm --prefix backend test && npm --prefix frontend test",
+    "test:integration": "npm --prefix backend run test:integration",
+    "test:e2e": "npm --prefix frontend run test:e2e",
+    "dev": "powershell -NoProfile -File scripts/start-local.ps1"
+  }
+}

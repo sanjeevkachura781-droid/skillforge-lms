@@ -1,3 +1,4 @@
+import { publicCourse } from '../public-content.js';
 import { Course, CourseModule, CourseStatus } from '../../database/models/index.js';
 import { AppError } from '../../utils/app-error.js';
 import { requireApprovedInstructor, requireResourceId } from '../catalog-access.js';
@@ -22,7 +23,8 @@ async function ownedModule(moduleId: number, userId: number): Promise<CourseModu
 export async function listCourseModules(courseId: number) {
   const course = await Course.findOne({ where: { id: courseId, status: CourseStatus.PUBLISHED } });
   if (!course) throw new AppError(404, 'Published course not found', 'COURSE_NOT_FOUND');
-  return CourseModule.findAll({ where: { courseId }, include: [{ association: 'lessons', separate: true, order: [['position', 'ASC']] }], order: [['position', 'ASC']] });
+  const modules = await CourseModule.findAll({ where: { courseId }, include: [{ association: 'lessons', separate: true, order: [['position', 'ASC']] }], order: [['position', 'ASC']] });
+  return publicCourse({ toJSON: () => ({ modules: modules.map((module) => module.toJSON()) }) }).modules;
 }
 
 export async function createModule(userId: number, courseId: number, input: { title: string; description?: string | null; position: number }) {

@@ -9,15 +9,14 @@ import {
 import { sequelize } from '../../database/sequelize.js';
 import { AppError } from '../../utils/app-error.js';
 import { createNotification } from '../notifications/notification.service.js';
+import { courseOutlineInclude } from '../content-includes.js';
 
 const courseWithLearningContent = {
   model: Course,
   as: 'course',
   include: [
-    {
-      association: 'modules',
-      include: [{ association: 'lessons' }],
-    },
+    { association: 'quizzes', where: { isPublished: true }, required: false, attributes: ['id', 'title', 'passingPercentage'] },
+    courseOutlineInclude,
   ],
 };
 
@@ -83,7 +82,7 @@ export async function enrollStudent(studentId: number, courseId: number) {
 
 export async function listStudentEnrollments(studentId: number) {
   return Enrollment.findAll({
-    where: { studentId },
+    where: { studentId, status: [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED] },
     include: [courseWithLearningContent],
     order: [['enrolledAt', 'DESC']],
   });
@@ -97,6 +96,7 @@ export async function getStudentEnrollment(
     where: {
       id: enrollmentId,
       studentId,
+      status: [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED],
     },
     include: [courseWithLearningContent],
   });

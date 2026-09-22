@@ -11,6 +11,11 @@ api.interceptors.request.use((config) => {
 });
 
 export function apiErrorMessage(error: unknown): string {
-  if (axios.isAxiosError(error)) return error.response?.data?.message ?? 'The request could not be completed.';
+  if (axios.isAxiosError(error)) {
+    const body = error.response?.data;
+    const details = body?.error?.details?.fieldErrors;
+    const messages = details ? Object.values(details).flat().filter(Boolean).join(' ') : '';
+    return messages || body?.message || 'The request could not be completed.';
+  }
   return 'The request could not be completed.';
 }

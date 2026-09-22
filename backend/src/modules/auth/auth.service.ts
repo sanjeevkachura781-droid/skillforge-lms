@@ -8,7 +8,7 @@ import { signAccessToken } from '../../utils/jwt.js';
 import { LoginInput, RegisterInput } from './auth.schemas.js';
 
 function publicUser(user: User) {
-  return { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, role: user.role, status: user.status };
+  return { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, role: user.role, status: user.status, instructorProfile: user.get('instructorProfile') ?? null };
 }
 
 async function createUser(input: RegisterInput, transaction: Transaction): Promise<User> {
@@ -23,12 +23,13 @@ async function createUser(input: RegisterInput, transaction: Transaction): Promi
 export async function register(input: RegisterInput) {
   return sequelize.transaction(async (transaction) => {
     const user = await createUser(input, transaction);
+    await user.reload({ include: [{ association: 'instructorProfile' }], transaction });
     return { user: publicUser(user), accessToken: signAccessToken({ sub: String(user.id), role: user.role }) };
   });
 }
 
 export async function login(input: LoginInput) {
-  const user = await User.findOne({ where: { email: input.email.toLowerCase() } });
+  const user = await User.findOne({ where: { email: input.email.toLowerCase() }, include: [{ association: 'instructorProfile' }] });
   if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) {
     throw new AppError(401, 'Invalid email or password', 'INVALID_CREDENTIALS');
   }

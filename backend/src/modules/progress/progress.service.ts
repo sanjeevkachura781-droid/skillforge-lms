@@ -18,9 +18,11 @@ function certificateNumber(): string {
 }
 
 export async function completeLesson(studentId: number, lessonId: number) {
-  const { lesson, course } = await lessonContext(lessonId);
+  const { course } = await lessonContext(lessonId);
   const enrollment = await requireCourseEnrollment(studentId, course.id);
   return sequelize.transaction(async (transaction) => {
+    await enrollment.reload({ transaction, lock: transaction.LOCK.UPDATE });
+    if (![EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED].includes(enrollment.status)) throw new AppError(403, 'You must enroll in this course first', 'ENROLLMENT_REQUIRED');
     const [progress] = await LessonProgress.findOrCreate({ where: { enrollmentId: enrollment.id, lessonId }, defaults: { enrollmentId: enrollment.id, lessonId, completed: true, completedAt: new Date() }, transaction });
     if (!progress.completed) await progress.update({ completed: true, completedAt: new Date() }, { transaction });
 
@@ -38,7 +40,7 @@ export async function completeLesson(studentId: number, lessonId: number) {
 }
 
 export async function getEnrollmentProgress(studentId: number, enrollmentId: number) {
-  const enrollment = await Enrollment.findOne({ where: { id: enrollmentId, studentId } });
+  const enrollment = await Enrollment.findOne({ where: { id: enrollmentId, studentId, status: [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED] } });
   if (!enrollment) throw new AppError(404, 'Enrollment not found', 'ENROLLMENT_NOT_FOUND');
   const totalLessons = await Lesson.count({ include: [{ association: 'module', where: { courseId: enrollment.courseId }, attributes: [] }] });
   const completedLessons = await LessonProgress.count({ where: { enrollmentId, completed: true } });

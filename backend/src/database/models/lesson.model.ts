@@ -19,7 +19,7 @@ Lesson.init(
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
     moduleId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     title: { type: DataTypes.STRING(180), allowNull: false },
-    content: { type: DataTypes.TEXT, allowNull: false },
+    content: { type: DataTypes.TEXT('medium'), allowNull: false },
     videoUrl: { type: DataTypes.STRING(500), allowNull: true },
     durationMinutes: { type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
     position: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },

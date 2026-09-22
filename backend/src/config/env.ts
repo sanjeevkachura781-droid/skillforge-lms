@@ -12,3 +12,6 @@ const envSchema = z.object({
 });
 
 export const env = envSchema.parse(process.env);
+if (env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || env.JWT_SECRET === 'development-only-secret-change-me-123456')) {
+  throw new Error('Production requires a unique JWT_SECRET with at least 32 characters');
+}

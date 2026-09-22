@@ -1,3 +1,4 @@
+import { publicLesson } from '../public-content.js';
 import { Course, CourseModule, CourseStatus, Lesson } from '../../database/models/index.js';
 import { AppError } from '../../utils/app-error.js';
 import { requireApprovedInstructor, requireResourceId } from '../catalog-access.js';
@@ -25,7 +26,7 @@ export async function listModuleLessons(moduleId: number) {
   const module = await CourseModule.findOne({ where: { id: moduleId }, include: [{ association: 'course' }] });
   const course = module?.get('course') as Course | undefined;
   if (!module || !course || course.status !== CourseStatus.PUBLISHED) throw new AppError(404, 'Published module not found', 'MODULE_NOT_FOUND');
-  return Lesson.findAll({ where: { moduleId }, order: [['position', 'ASC']] });
+  return (await Lesson.findAll({ where: { moduleId }, order: [['position', 'ASC']] })).map(publicLesson);
 }
 
 export async function createLesson(userId: number, moduleId: number, input: { title: string; content: string; videoUrl?: string | null; durationMinutes?: number | null; position: number; isPreview?: boolean }) {

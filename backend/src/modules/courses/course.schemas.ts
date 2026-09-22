@@ -7,7 +7,7 @@ const courseBody = z.object({
   slug: z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(200),
   shortDescription: z.string().trim().min(10).max(300),
   description: z.string().trim().min(20).max(50000),
-  thumbnailUrl: z.string().url().max(500).nullable().optional(),
+  thumbnailUrl: z.string().url().max(500).refine((value) => /^https?:\/\//i.test(value), 'Use an HTTP or HTTPS image URL').nullable().optional(),
   level: z.nativeEnum(CourseLevel).optional(),
 });
 

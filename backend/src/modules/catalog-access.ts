@@ -12,6 +12,6 @@ export async function requireApprovedInstructor(userId: number): Promise<User> {
 
 export function requireResourceId(value: string | undefined, resource: string): number {
   const id = Number(value);
-  if (!Number.isInteger(id) || id <= 0) throw new AppError(400, `Invalid ${resource} id`, 'INVALID_RESOURCE_ID');
+  if (!value || !/^\d+$/.test(value) || !Number.isSafeInteger(id) || id <= 0) throw new AppError(400, `Invalid ${resource} id`, 'INVALID_RESOURCE_ID');
   return id;
 }

@@ -1,9 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
-import { UserRole } from '../database/models/index.js';
+import { User, UserStatus, UserRole } from '../database/models/index.js';
 import { AppError } from '../utils/app-error.js';
 import { verifyAccessToken } from '../utils/jwt.js';
 
-export function requireAuth(request: Request, _response: Response, next: NextFunction): void {
+export async function requireAuth(request: Request, _response: Response, next: NextFunction): Promise<void> {
   const header = request.header('authorization');
   const token = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
   if (!token) {
@@ -11,12 +11,22 @@ export function requireAuth(request: Request, _response: Response, next: NextFun
     return;
   }
 
+  let payload;
   try {
-    const payload = verifyAccessToken(token);
-    request.auth = { userId: Number(payload.sub), role: payload.role };
-    next();
+    payload = verifyAccessToken(token);
+    if (!Number.isSafeInteger(Number(payload.sub)) || Number(payload.sub) <= 0) throw new Error('Invalid token subject');
   } catch {
     next(new AppError(401, 'Invalid or expired access token', 'INVALID_TOKEN'));
+    return;
+  }
+
+  try {
+    const user = await User.findByPk(Number(payload.sub));
+    if (!user || user.status !== UserStatus.ACTIVE) { next(new AppError(401, 'Account is unavailable', 'INVALID_TOKEN')); return; }
+    request.auth = { userId: user.id, role: user.role };
+    next();
+  } catch (error) {
+    next(error);
   }
 }
 

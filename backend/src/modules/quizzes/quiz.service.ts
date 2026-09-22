@@ -1,9 +1,10 @@
-import { Course, CourseStatus, NotificationType, Quiz, QuizAttempt, QuizOption, QuizQuestion, User } from '../../database/models/index.js';
+import { Course, CourseStatus, NotificationType, Quiz, QuizAttempt, QuizOption, QuizQuestion } from '../../database/models/index.js';
 import { sequelize } from '../../database/sequelize.js';
 import { AppError } from '../../utils/app-error.js';
 import { requireApprovedInstructor, requireResourceId } from '../catalog-access.js';
 import { requireCourseEnrollment } from '../enrollments/enrollment.service.js';
 import { createNotification } from '../notifications/notification.service.js';
+import { quizQuestionsInclude } from '../content-includes.js';
 
 async function ownedEditableCourse(courseId: number, userId: number): Promise<Course> {
   const course = await Course.findByPk(courseId);
@@ -45,11 +46,52 @@ export async function createQuiz(userId: number, courseId: number, input: { titl
 
 export async function addQuestion(userId: number, quizId: number, input: { questionText: string; position: number; points?: number; options: { optionText: string; position: number; isCorrect: boolean }[] }) {
   await requireApprovedInstructor(userId);
-  await ownedQuiz(quizId, userId);
+  const quiz = await ownedQuiz(quizId, userId);
   return sequelize.transaction(async (transaction) => {
     const question = await QuizQuestion.create({ quizId, questionText: input.questionText, position: input.position, points: input.points ?? 1 }, { transaction });
     await QuizOption.bulkCreate(input.options.map((option) => ({ ...option, questionId: question.id })), { transaction });
-    return QuizQuestion.findByPk(question.id, { include: [{ association: 'options', attributes: ['id', 'optionText', 'position'] }], transaction });
+    await quiz.update({ isPublished: false }, { transaction });
+    return QuizQuestion.findByPk(question.id, { include: [{ association: 'options', separate: true, order: [['position', 'ASC']] }], transaction });
+  });
+}
+
+export async function updateQuiz(userId: number, quizId: number, input: Partial<{ title: string; description: string | null; passingPercentage: number }>) {
+  await requireApprovedInstructor(userId);
+  const quiz = await ownedQuiz(quizId, userId);
+  return quiz.update(input);
+}
+
+export async function deleteQuiz(userId: number, quizId: number) {
+  await requireApprovedInstructor(userId);
+  const quiz = await ownedQuiz(quizId, userId);
+  await quiz.destroy();
+}
+
+export async function updateQuestion(userId: number, questionId: number, input: Partial<{ questionText: string; position: number; points: number; options: { optionText: string; position: number; isCorrect: boolean }[] }>) {
+  await requireApprovedInstructor(userId);
+  const question = await QuizQuestion.findByPk(questionId);
+  if (!question) throw new AppError(404, 'Question not found', 'QUESTION_NOT_FOUND');
+  const quiz = await ownedQuiz(question.quizId, userId);
+  return sequelize.transaction(async (transaction) => {
+    const { options, ...details } = input;
+    await question.update(details, { transaction });
+    if (options) {
+      await QuizOption.destroy({ where: { questionId }, transaction });
+      await QuizOption.bulkCreate(options.map((option) => ({ ...option, questionId })), { transaction });
+    }
+    await quiz.update({ isPublished: false }, { transaction });
+    return QuizQuestion.findByPk(questionId, { include: [{ association: 'options', separate: true, order: [['position', 'ASC']] }], transaction });
+  });
+}
+
+export async function deleteQuestion(userId: number, questionId: number) {
+  await requireApprovedInstructor(userId);
+  const question = await QuizQuestion.findByPk(questionId);
+  if (!question) throw new AppError(404, 'Question not found', 'QUESTION_NOT_FOUND');
+  const quiz = await ownedQuiz(question.quizId, userId);
+  await sequelize.transaction(async (transaction) => {
+    await question.destroy({ transaction });
+    await quiz.update({ isPublished: false }, { transaction });
   });
 }
 
@@ -63,7 +105,7 @@ export async function publishQuiz(userId: number, quizId: number) {
 }
 
 export async function getQuizForStudent(studentId: number, quizId: number) {
-  const quiz = await Quiz.findOne({ where: { id: quizId, isPublished: true }, include: [{ association: 'course' }, { association: 'questions', include: [{ association: 'options', attributes: ['id', 'optionText', 'position'] }] }] });
+  const quiz = await Quiz.findOne({ where: { id: quizId, isPublished: true }, include: [{ association: 'course' }, quizQuestionsInclude()] });
   const course = quiz?.get('course') as Course | undefined;
   if (!quiz || !course || course.status !== CourseStatus.PUBLISHED) throw new AppError(404, 'Published quiz not found', 'QUIZ_NOT_FOUND');
   await requireCourseEnrollment(studentId, course.id);
@@ -71,7 +113,7 @@ export async function getQuizForStudent(studentId: number, quizId: number) {
 }
 
 export async function submitQuiz(studentId: number, quizId: number, answers: { questionId: number; optionId: number }[]) {
-  const quiz = await Quiz.findOne({ where: { id: quizId, isPublished: true }, include: [{ association: 'course' }, { association: 'questions', include: [{ association: 'options' }] }] });
+  const quiz = await Quiz.findOne({ where: { id: quizId, isPublished: true }, include: [{ association: 'course' }, quizQuestionsInclude(true)] });
   const course = quiz?.get('course') as Course | undefined;
   if (!quiz || !course || course.status !== CourseStatus.PUBLISHED) throw new AppError(404, 'Published quiz not found', 'QUIZ_NOT_FOUND');
   await requireCourseEnrollment(studentId, course.id);
@@ -88,9 +130,11 @@ export async function submitQuiz(studentId: number, quizId: number, answers: { q
   const score = calculateQuizScore(questions.map((question) => ({ id: question.id, points: question.points, options: question.get('options') as QuizOption[] })), answers, Number(quiz.passingPercentage));
   const { scorePercentage, passed, totalPoints, earnedPoints } = score;
   const answerMap = new Map(answers.map((answer) => [answer.questionId, answer.optionId]));
-  const attempt = await QuizAttempt.create({ quizId, studentId, scorePercentage, passed, answers: Object.fromEntries(answerMap), submittedAt: new Date() });
-  await createNotification({ userId: studentId, type: NotificationType.QUIZ, title: passed ? 'Quiz passed' : 'Quiz submitted', message: `You scored ${scorePercentage}% on ${quiz.title}.` });
-  return { attempt, scorePercentage, passed, totalPoints, earnedPoints };
+  return sequelize.transaction(async (transaction) => {
+    const attempt = await QuizAttempt.create({ quizId, studentId, scorePercentage, passed, answers: Object.fromEntries(answerMap), submittedAt: new Date() }, { transaction });
+    await createNotification({ userId: studentId, type: NotificationType.QUIZ, title: passed ? 'Quiz passed' : 'Quiz submitted', message: `You scored ${scorePercentage}% on ${quiz.title}.` }, { transaction });
+    return { attempt, scorePercentage, passed, totalPoints, earnedPoints };
+  });
 }
 
 export async function getStudentAttempt(studentId: number, attemptId: number) {

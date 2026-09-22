@@ -4,6 +4,7 @@ import { Category, Course, CourseLevel, CourseModule, CourseStatus, Enrollment, 
 import { sequelize } from './sequelize.js';
 
 async function seed(): Promise<void> {
+  if (env.NODE_ENV === 'production') throw new Error('Demo data must not be seeded in production');
   await sequelize.authenticate();
   const accounts = [
     { firstName: 'SkillForge', lastName: 'Admin', email: 'admin@skillforge.test', password: 'Admin@12345', role: UserRole.ADMIN },
@@ -49,10 +50,9 @@ async function seed(): Promise<void> {
     await QuizOption.findOrCreate({ where: { questionId: question.id, position: 2 }, defaults: { questionId: question.id, optionText: 'Only the database', position: 2, isCorrect: false }, transaction });
   });
   console.log('SkillForge demo accounts and catalog data seeded.');
-  await sequelize.close();
 }
 
 seed().catch((error: unknown) => {
   console.error(error);
   process.exitCode = 1;
-});
+}).finally(() => sequelize.close());

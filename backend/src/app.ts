@@ -1,3 +1,4 @@
+import { managementRouter } from './modules/management.routes.js';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -40,5 +41,6 @@ app.use('/api/certificates', certificateRouter);
 app.use('/api', quizRouter);
 app.use('/api', reviewRouter);
 app.use('/api/notifications', notificationRouter);
+app.use('/api', managementRouter);
 app.use(notFound);
 app.use(errorHandler);

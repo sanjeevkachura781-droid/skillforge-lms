@@ -38,7 +38,7 @@ Course.init(
     title: { type: DataTypes.STRING(180), allowNull: false },
     slug: { type: DataTypes.STRING(200), allowNull: false, unique: true },
     shortDescription: { type: DataTypes.STRING(300), allowNull: false },
-    description: { type: DataTypes.TEXT, allowNull: false },
+    description: { type: DataTypes.TEXT('medium'), allowNull: false },
     thumbnailUrl: { type: DataTypes.STRING(500), allowNull: true },
     level: { type: DataTypes.ENUM(...Object.values(CourseLevel)), allowNull: false, defaultValue: CourseLevel.BEGINNER },
     status: { type: DataTypes.ENUM(...Object.values(CourseStatus)), allowNull: false, defaultValue: CourseStatus.DRAFT },

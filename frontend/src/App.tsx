@@ -1,3 +1,8 @@
+import { lazy, Suspense } from 'react';
+import { LoadingState } from './components/State';
+const CourseEditorPage = lazy(() => import('./pages/AuthoringPages').then(module => ({ default: module.CourseEditorPage }))); 
+import { ManagementPage } from './pages/ManagementPage';
+import { QuizPage } from './pages/LearningFeatures';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './layouts/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -8,7 +13,7 @@ import { CourseDetailsPage } from './pages/CourseDetailsPage';
 import { CertificatesPage, DashboardPage, LearningPage, NotificationsPage } from './pages/DashboardPages';
 
 export default function App() {
-  return <Routes>
+  return <Suspense fallback={<LoadingState />}><Routes>
     <Route element={<AppLayout />}>
       <Route path="/" element={<HomePage />} />
       <Route path="/courses" element={<CoursesPage />} />
@@ -22,12 +27,15 @@ export default function App() {
       <Route element={<ProtectedRoute roles={['student']} />}>
         <Route path="/my-learning" element={<Navigate to="/dashboard" replace />} />
         <Route path="/learn/:enrollmentId" element={<LearningPage />} />
+        <Route path="/quizzes/:quizId" element={<QuizPage />} />
         <Route path="/certificates" element={<CertificatesPage />} />
       </Route>
       <Route element={<ProtectedRoute roles={['instructor']} />}>
-        <Route path="/instructor/courses/new" element={<DashboardPage />} />
+        <Route path="/instructor/courses/new" element={<CourseEditorPage />} />
       </Route>
+      <Route element={<ProtectedRoute roles={['instructor', 'admin']} />}><Route path="/instructor/courses/:courseId" element={<CourseEditorPage />} /></Route>
+      <Route element={<ProtectedRoute roles={['admin']} />}><Route path="/admin/manage" element={<ManagementPage />} /></Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Route>
-  </Routes>;
+  </Routes></Suspense>;
 }

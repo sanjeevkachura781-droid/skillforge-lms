@@ -1,0 +1,2 @@
+import { defineConfig, devices } from '@playwright/test';
+export default defineConfig({ testDir: './e2e', fullyParallel: false, workers: 1, use: { baseURL: 'http://localhost:5173', ...devices['Desktop Edge'], channel: 'msedge', trace: 'retain-on-failure' }, webServer: [{ command: 'npm run dev -- --host 127.0.0.1', url: 'http://localhost:5173', reuseExistingServer: true }, { command: 'npm --prefix ../backend run dev', url: 'http://localhost:4000/health', reuseExistingServer: true }], reporter: 'list' });

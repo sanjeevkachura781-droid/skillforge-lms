@@ -3,7 +3,7 @@ import { z } from 'zod';
 const lessonBody = z.object({
   title: z.string().trim().min(2).max(180),
   content: z.string().trim().min(1).max(100000),
-  videoUrl: z.string().url().max(500).nullable().optional(),
+  videoUrl: z.string().url().max(500).refine(value => /^https?:\/\//i.test(value), 'Use an HTTP or HTTPS video URL').nullable().optional(),
   durationMinutes: z.coerce.number().int().nonnegative().nullable().optional(),
   position: z.coerce.number().int().positive(),
   isPreview: z.boolean().optional(),

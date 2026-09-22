@@ -11,8 +11,9 @@ export function validate(schema: z.ZodTypeAny) {
     request.body = result.data.body;
     for (const key of Object.keys(request.params)) delete request.params[key];
     Object.assign(request.params, result.data.params);
-    for (const key of Object.keys(request.query)) delete request.query[key];
-    Object.assign(request.query, result.data.query);
+    // Express 5 exposes query through a getter that reparses the URL on every
+    // access. Preserve the validated/coerced values for downstream handlers.
+    Object.defineProperty(request, 'query', { value: result.data.query, configurable: true, writable: true });
     next();
   };
 }
